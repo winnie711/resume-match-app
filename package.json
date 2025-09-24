@@ -1,0 +1,27 @@
+{
+  "name": "resume-match-app",
+  "version": "1.0.0",
+  "description": "AI-powered resume matching application",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "cd server && npm start",
+    "dev": "cd server && npm run dev",
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'No build step required'"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "lodash": "^4.17.21",
+    "mammoth": "^1.7.2",
+    "multer": "^1.4.5-lts.1",
+    "pdfjs-dist": "^4.0.379",
+    "string-similarity": "^4.0.4",
+    "natural": "^6.12.0",
+    "compromise": "^14.10.0",
+    "sentiment": "^5.0.2",
+    "openai": "^4.20.1",
+    "node-fetch": "^3.3.2"
+  }
+}
