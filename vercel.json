@@ -10,18 +10,6 @@
     {
       "src": "/api/(.*)",
       "dest": "/server/index.js"
-    },
-    {
-      "src": "/",
-      "dest": "/client/index-openai.html"
-    },
-    {
-      "src": "/(.*\\.(html|css|js|png|jpg|jpeg|gif|ico|svg))",
-      "dest": "/client/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/client/index-openai.html"
     }
   ]
 }

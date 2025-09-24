@@ -1,15 +1,427 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Match App</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resume Match Dashboard - AI Powered</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root { --bg:#0b1020; --panel:#121933; --muted:#8690b0; --text:#e5e9ff; --accent:#6ea8fe; --good:#16a34a; --bad:#ef4444; }
+      *{ box-sizing:border-box }
+      body{ margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); }
+      .container{ max-width:1200px; margin:0 auto; padding:24px; }
+      .card{ background:var(--panel); border:1px solid #1d2547; border-radius:12px; padding:16px; margin-bottom:16px; }
+      .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+      .title{ font-weight:700; font-size:24px; }
+      .subtitle{ color:var(--muted); font-size:14px; }
+      .btn{ background:var(--accent); color:#081225; border:none; padding:12px 16px; border-radius:10px; font-weight:600; cursor:pointer; }
+      .btn:disabled{ opacity:.6; cursor:not-allowed }
+      .btn-secondary{ background:#2a3566; color:var(--text); }
+      .grid{ display:grid; grid-template-columns:1fr 300px; gap:16px; margin-top:16px; }
+      .filters input{ width:100%; margin-bottom:10px; padding:10px; border-radius:10px; border:1px solid #2a3566; background:#0e1530; color:var(--text); }
+      .job{ border:1px solid #222b55; border-radius:12px; padding:16px; margin-bottom:16px; background:#0f1632; }
+      .job-head{ display:flex; justify-content:space-between; align-items:center; cursor:pointer; margin-bottom:8px; }
+      .job-title{ font-weight:600; font-size:18px; }
+      .job-company{ color:var(--muted); font-size:14px; }
+      .score{ font-weight:700; font-size:20px; padding:8px 12px; border-radius:8px; }
+      .score.excellent{ background:#16a34a; color:white; }
+      .score.good{ background:#f59e0b; color:white; }
+      .score.poor{ background:#ef4444; color:white; }
+      .badge{ display:inline-block; padding:4px 8px; border-radius:6px; margin:2px; font-size:12px; }
+      .badge.required{ background:#ef4444; color:white; }
+      .badge.preferred{ background:#f59e0b; color:white; }
+      .badge.bonus{ background:#16a34a; color:white; }
+      .badge.missing{ background:#374151; color:#9ca3af; }
+      .skills-section{ margin-top:12px; }
+      .skill-category{ margin-bottom:8px; }
+      .category-title{ font-weight:600; color:var(--accent); margin-bottom:4px; }
+      .match-details{ margin-top:12px; padding:12px; background:#1a1f3a; border-radius:8px; }
+      .match-table{ width:100%; border-collapse:collapse; margin-top:8px; }
+      .match-table th, .match-table td{ padding:8px; text-align:left; border-bottom:1px solid #2a3566; }
+      .match-table th{ background:#2a3566; font-weight:600; }
+      .hidden{ display:none; }
+      .loading{ text-align:center; padding:20px; color:var(--muted); }
+      .error{ color:var(--bad); background:#2d1b1b; padding:12px; border-radius:8px; margin:8px 0; }
+      .resume-summary{ background:#1a1f3a; padding:12px; border-radius:8px; margin-bottom:16px; }
+      .description-toggle{ cursor:pointer; display:flex; align-items:center; gap:8px; margin-bottom:8px; padding:8px; background:#0e1530; border-radius:6px; border:1px solid #2a3566; }
+      .description-toggle:hover{ background:#121933; }
+      .description-content{ margin-top:8px; }
+      .description-preview{ color:#8690b0; font-style:italic; }
+      .apply-btn{ background:#16a34a; color:white; border:none; padding:8px 16px; border-radius:6px; font-weight:600; cursor:pointer; margin-top:12px; }
+      .apply-btn:hover{ background:#15803d; }
+      .apply-btn:disabled{ background:#374151; cursor:not-allowed; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div>
+          <div class="title">🤖 AI Resume Match Dashboard</div>
+          <div class="subtitle">Powered by OpenAI GPT-4 for intelligent skill matching</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input id="file" type="file" accept=".pdf,.doc,.docx,.txt" style="display:none;" />
+          <button onclick="document.getElementById('file').click()" class="btn btn-secondary">Choose Resume</button>
+          <button id="uploadBtn" class="btn">🚀 AI Match</button>
+          <span id="status" class="subtitle"></span>
+        </div>
+      </div>
+
+      <div id="resume-summary" class="resume-summary hidden">
+        <div style="font-weight:600; margin-bottom:8px;">📄 Resume Summary</div>
+        <div id="resume-content"></div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div id="results"></div>
+        </div>
+        <div class="card filters">
+          <div style="font-weight:600; margin-bottom:12px">🔍 Filters</div>
+          <input id="filterTitle" placeholder="Job Title" />
+          <input id="filterCompany" placeholder="Company" />
+          <input id="filterLocation" placeholder="Location" />
+          <input id="filterQ" placeholder="Description contains..." />
+          <button id="applyFilters" class="btn" style="width:100%; margin-top:8px">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+
     <script>
-        // Redirect to the main app
-        window.location.href = '/client/index-openai.html';
+      const apiBase = location.origin.replace(/\/$/, '');
+      const statusEl = document.getElementById('status');
+      const resultsEl = document.getElementById('results');
+      const resumeSummaryEl = document.getElementById('resume-summary');
+      const resumeContentEl = document.getElementById('resume-content');
+
+      function getScoreClass(score) {
+        if (score >= 80) return 'excellent';
+        if (score >= 60) return 'good';
+        return 'poor';
+      }
+
+      function renderResults(items) {
+        resultsEl.innerHTML = '';
+        window.currentJobs = items; // Store jobs globally for apply function
+        if (!items || !items.length) {
+          resultsEl.innerHTML = '<div class="loading">No jobs found.</div>';
+          return;
+        }
+
+        items.forEach(job => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'job';
+          
+          const match = job.openaiMatch || job.match;
+          const score = match?.overallMatch || match?.score || 0;
+          
+          wrapper.innerHTML = `
+            <div class="job-head" onclick="toggleDetails('${job.id}')">
+              <div>
+                <div class="job-title">${job.title}</div>
+                <div class="job-company">${job.company} • ${job.location}</div>
+              </div>
+              <div class="score ${getScoreClass(score)}">${score}%</div>
+            </div>
+            <div class="job-details hidden" id="details-${job.id}">
+              <div class="description-toggle" onclick="toggleDescription('${job.id}')">
+                <span id="desc-icon-${job.id}">▶</span>
+                <span>Job Description</span>
+              </div>
+              <div class="description-content hidden" id="desc-content-${job.id}">
+                <div style="color:#b6bde0; line-height:1.6;">${formatJobDescription(job.description)}</div>
+              </div>
+              <div class="description-preview" id="desc-preview-${job.id}">
+                ${job.description ? job.description.substring(0, 150) + (job.description.length > 150 ? '...' : '') : 'No description available'}
+              </div>
+              <button class="apply-btn" onclick="applyToJob('${job.id}', '${job.title}', '${job.company}')">
+                🚀 Apply to this Job
+              </button>
+              ${renderMatchDetails(match, job)}
+            </div>
+          `;
+          
+          resultsEl.appendChild(wrapper);
+        });
+      }
+
+      function renderMatchDetails(match, job) {
+        if (!match) return '<div class="error">No match data available</div>';
+        
+        if (match.overallMatch) {
+          // OpenAI match data
+          return `
+            <div class="match-details">
+              <div style="font-weight:600; margin-bottom:8px;">📊 AI Analysis</div>
+              <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(120px, 1fr)); gap:8px; margin-bottom:12px;">
+                <div><strong>Education:</strong> ${match.categoryScores?.education || 0}%</div>
+                <div><strong>Experience:</strong> ${match.categoryScores?.experience || 0}%</div>
+                <div><strong>Hard Skills:</strong> ${match.categoryScores?.hardSkills || 0}%</div>
+                <div><strong>Soft Skills:</strong> ${match.categoryScores?.softSkills || 0}%</div>
+                <div><strong>Domain:</strong> ${match.categoryScores?.domainKnowledge || 0}%</div>
+              </div>
+              ${match.detailedMatches ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:600; margin-bottom:8px;">📋 Detailed Matches</div>
+                  <table class="match-table">
+                    <thead>
+                      <tr>
+                        <th>Requirement</th>
+                        <th>Evidence</th>
+                        <th>Score</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${match.detailedMatches.map(m => `
+                        <tr>
+                          <td>${m.requirement}</td>
+                          <td>${m.resumeEvidence}</td>
+                          <td>${m.matchScore}%</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              ` : ''}
+              ${match.missingSkills ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:600; margin-bottom:8px;">❌ Missing Skills</div>
+                  <div>${match.missingSkills.map(skill => `<span class="badge missing">${skill}</span>`).join('')}</div>
+                </div>
+              ` : ''}
+              ${match.strengths ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:600; margin-bottom:8px;">✅ Strengths</div>
+                  <ul style="margin:0; padding-left:20px;">
+                    ${match.strengths.map(strength => `<li>${strength}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+              ${match.recommendations ? `
+                <div style="margin-top:12px;">
+                  <div style="font-weight:600; margin-bottom:8px;">💡 Recommendations</div>
+                  <ul style="margin:0; padding-left:20px;">
+                    ${match.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+          `;
+        } else {
+          // Basic match data
+          return `
+            <div class="match-details">
+              <div style="font-weight:600; margin-bottom:8px;">📊 Basic Analysis</div>
+              <div class="skills-section">
+                <div class="skill-category">
+                  <div class="category-title">✅ Required Skills Match</div>
+                  <div>${(match.overlap?.required || []).map(skill => `<span class="badge required">${skill}</span>`).join('') || 'None'}</div>
+                </div>
+                <div class="skill-category">
+                  <div class="category-title">⭐ Preferred Skills Match</div>
+                  <div>${(match.overlap?.preferred || []).map(skill => `<span class="badge preferred">${skill}</span>`).join('') || 'None'}</div>
+                </div>
+                <div class="skill-category">
+                  <div class="category-title">🎯 Bonus Skills Match</div>
+                  <div>${(match.overlap?.bonus || []).map(skill => `<span class="badge bonus">${skill}</span>`).join('') || 'None'}</div>
+                </div>
+                <div class="skill-category">
+                  <div class="category-title">❌ Missing Required Skills</div>
+                  <div>${(match.missing?.required || []).map(skill => `<span class="badge missing">${skill}</span>`).join('') || 'None'}</div>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+      }
+
+      function toggleDetails(jobId) {
+        const details = document.getElementById(`details-${jobId}`);
+        details.classList.toggle('hidden');
+      }
+
+      function toggleDescription(jobId) {
+        const content = document.getElementById(`desc-content-${jobId}`);
+        const preview = document.getElementById(`desc-preview-${jobId}`);
+        const icon = document.getElementById(`desc-icon-${jobId}`);
+        
+        content.classList.toggle('hidden');
+        preview.classList.toggle('hidden');
+        icon.textContent = content.classList.contains('hidden') ? '▶' : '▼';
+      }
+
+      function formatJobDescription(description) {
+        if (!description) return 'No description available';
+        
+        // Split into paragraphs and format
+        const paragraphs = description.split('\n').filter(p => p.trim());
+        let formatted = '';
+        
+        paragraphs.forEach(paragraph => {
+          const trimmed = paragraph.trim();
+          if (!trimmed) return;
+          
+          // Check if it's a bullet point or list item
+          if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+            formatted += `<div style="margin: 8px 0; padding-left: 16px; position: relative;">
+              <span style="position: absolute; left: 0; color: #6ea8fe;">•</span>
+              <span>${trimmed.substring(1).trim()}</span>
+            </div>`;
+          }
+          // Check if it's a section header (all caps or title case)
+          else if (trimmed.length < 50 && (trimmed === trimmed.toUpperCase() || /^[A-Z][a-z\s]+:?$/.test(trimmed))) {
+            formatted += `<div style="font-weight: 600; color: #aab3da; margin: 16px 0 8px 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">${trimmed}</div>`;
+          }
+          // Regular paragraph
+          else {
+            formatted += `<div style="margin: 12px 0; line-height: 1.6;">${trimmed}</div>`;
+          }
+        });
+        
+        return formatted || `<div style="margin: 12px 0; line-height: 1.6;">${description}</div>`;
+      }
+
+      function applyToJob(jobId, jobTitle, company) {
+        // Try to find the job URL from the job data
+        const job = window.currentJobs?.find(j => j.id === jobId);
+        const jobUrl = job?.job_apply_link || job?.apply_url || job?.url;
+        
+        if (jobUrl) {
+          // Open the application URL in a new tab
+          window.open(jobUrl, '_blank');
+        } else {
+          // If no direct URL, try to construct a search URL
+          const searchQuery = encodeURIComponent(`${jobTitle} ${company} jobs`);
+          const searchUrls = [
+            `https://www.linkedin.com/jobs/search/?keywords=${searchQuery}`,
+            `https://www.indeed.com/jobs?q=${searchQuery}`,
+            `https://www.glassdoor.com/Job/jobs.htm?sc.keyword=${searchQuery}`
+          ];
+          
+          // Show a modal with options
+          showApplicationOptions(jobTitle, company, searchUrls);
+        }
+      }
+
+      function showApplicationOptions(jobTitle, company, searchUrls) {
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+          position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+          background: rgba(0,0,0,0.8); display: flex; align-items: center; 
+          justify-content: center; z-index: 1000;
+        `;
+        
+        modal.innerHTML = `
+          <div style="background: #121933; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;">
+            <h3 style="margin: 0 0 16px 0; color: #e5e9ff;">Apply to ${jobTitle} at ${company}</h3>
+            <p style="color: #8690b0; margin-bottom: 20px;">No direct application link found. Choose a job board to search for this position:</p>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <button onclick="window.open('${searchUrls[0]}', '_blank'); this.closest('div').parentElement.remove();" 
+                      style="background: #0077b5; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">
+                🔗 Search on LinkedIn
+              </button>
+              <button onclick="window.open('${searchUrls[1]}', '_blank'); this.closest('div').parentElement.remove();" 
+                      style="background: #2557a7; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">
+                🔍 Search on Indeed
+              </button>
+              <button onclick="window.open('${searchUrls[2]}', '_blank'); this.closest('div').parentElement.remove();" 
+                      style="background: #0caa41; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">
+                🏢 Search on Glassdoor
+              </button>
+              <button onclick="this.closest('div').parentElement.remove();" 
+                      style="background: #6b7280; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">
+                Cancel
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) {
+            modal.remove();
+          }
+        });
+      }
+
+      async function uploadAndScore() {
+        const file = document.getElementById('file').files[0];
+        if (!file) { 
+          alert('Please select a resume file first'); 
+          return; 
+        }
+        
+        statusEl.textContent = '🤖 AI is analyzing your resume...';
+        statusEl.style.color = '#6ea8fe';
+        
+        const form = new FormData();
+        form.append('resume', file);
+        
+        try {
+          const res = await fetch(`${apiBase}/api/match-openai`, { 
+            method: 'POST', 
+            body: form 
+          });
+          
+          if (!res.ok) {
+            const errorData = await res.json();
+            statusEl.textContent = `❌ Upload failed: ${errorData.error}`;
+            statusEl.style.color = '#ef4444';
+            return;
+          }
+          
+          const data = await res.json();
+          
+          // Display resume summary
+          if (data.resume.summary) {
+            resumeContentEl.innerHTML = `
+              <div style="margin-bottom:8px;"><strong>Summary:</strong> ${data.resume.summary}</div>
+              <div style="margin-bottom:8px;"><strong>Skills Found:</strong> ${data.resume.skills.length}</div>
+              <div style="margin-bottom:8px;"><strong>Experience:</strong> ${data.resume.experience?.totalYears || 'Unknown'} years</div>
+              <div><strong>Education:</strong> ${data.resume.education?.degree || 'Not specified'}</div>
+            `;
+            resumeSummaryEl.classList.remove('hidden');
+          }
+          
+          statusEl.textContent = `✅ AI analysis complete! Found ${data.resume.skills.length} skills`;
+          statusEl.style.color = '#16a34a';
+          
+          renderResults(data.results);
+          
+        } catch (error) {
+          console.error('Upload error:', error);
+          statusEl.textContent = '❌ Upload failed. Please try again.';
+          statusEl.style.color = '#ef4444';
+        }
+      }
+
+      document.getElementById('uploadBtn').addEventListener('click', uploadAndScore);
+
+      document.getElementById('applyFilters').addEventListener('click', async () => {
+        statusEl.textContent = 'Loading jobs...';
+        const params = {
+          title: document.getElementById('filterTitle').value.trim(),
+          company: document.getElementById('filterCompany').value.trim(),
+          location: document.getElementById('filterLocation').value.trim(),
+          q: document.getElementById('filterQ').value.trim()
+        };
+        Object.keys(params).forEach(k => { if (!params[k]) delete params[k]; });
+        
+        try {
+          const jobs = await fetch(`${apiBase}/api/jobs?${new URLSearchParams(params).toString()}`).then(r => r.json());
+          statusEl.textContent = '';
+          renderResults(jobs);
+        } catch (error) {
+          statusEl.textContent = 'Failed to load jobs';
+        }
+      });
+
+      // Initial load
+      fetch(`${apiBase}/api/jobs`).then(r => r.json()).then(renderResults);
     </script>
-</head>
-<body>
-    <p>Redirecting to Resume Match App...</p>
-</body>
+  </body>
 </html>
