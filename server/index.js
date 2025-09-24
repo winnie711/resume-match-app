@@ -18,7 +18,7 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, '..', 'client')));
+app.use(express.static(path.join(__dirname, '..')));
 
 const upload = multer({ dest: path.join(__dirname, 'uploads') });
 
@@ -75,6 +75,11 @@ async function fetchJobsFromAPI(query = 'strategic finance') {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Serve the main app
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, '..', 'index.html'));
 });
 
 // RapidAPI-backed job search (JSearch)
