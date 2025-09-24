@@ -1,0 +1,34 @@
+[
+  {
+    "id": "job-1",
+    "title": "Full Stack Engineer",
+    "company": "Acme Corp",
+    "location": "Boston, MA",
+    "description": "Build and maintain React + Node services on AWS. Collaborate with product and design.",
+    "requiredSkills": ["javascript", "react", "node", "express"],
+    "preferredSkills": ["typescript", "aws", "docker"],
+    "bonusSkills": ["graphql", "kubernetes"]
+  },
+  {
+    "id": "job-2",
+    "title": "ML Engineer",
+    "company": "BioAI",
+    "location": "Cambridge, MA",
+    "description": "Develop NLP pipelines, fine-tune LLMs, and deploy ML services.",
+    "requiredSkills": ["python", "ml", "nlp"],
+    "preferredSkills": ["pytorch", "tensorflow", "aws"],
+    "bonusSkills": ["docker", "kubernetes"]
+  },
+  {
+    "id": "job-3",
+    "title": "Data Engineer",
+    "company": "Finlytics",
+    "location": "Remote",
+    "description": "Own ETL, data modeling, and reliable data pipelines.",
+    "requiredSkills": ["python", "sql", "airflow"],
+    "preferredSkills": ["dbt", "spark", "aws"],
+    "bonusSkills": ["kafka", "terraform"]
+  }
+]
+
+

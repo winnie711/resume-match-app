@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resume Match Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+      :root { --bg:#0b1020; --panel:#121933; --muted:#8690b0; --text:#e5e9ff; --accent:#6ea8fe; --good:#16a34a; --bad:#ef4444; }
+      *{ box-sizing:border-box }
+      body{ margin:0; font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--text); }
+      .container{ max-width:1100px; margin:0 auto; padding:24px; }
+      .topbar{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+      .card{ background:var(--panel); border:1px solid #1d2547; border-radius:12px; padding:16px; }
+      .header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+      .title{ font-weight:700; font-size:20px; }
+      .muted{ color:var(--muted); }
+      .btn{ background:var(--accent); color:#081225; border:none; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer; }
+      .btn:disabled{ opacity:.6; cursor:not-allowed }
+      .grid{ display:grid; grid-template-columns:1fr 320px; gap:16px; margin-top:16px; }
+      .filters input{ width:100%; margin-bottom:10px; padding:10px; border-radius:10px; border:1px solid #2a3566; background:#0e1530; color:var(--text); }
+      .job{ border:1px solid #222b55; border-radius:12px; padding:12px; margin-bottom:12px; background:#0f1632; }
+      .job-head{ display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+      .score{ font-weight:700; }
+      .score.good{ color:var(--good) }
+      .score.mid{ color:#f59e0b }
+      .score.bad{ color:var(--bad) }
+      .badge{ display:inline-block; padding:2px 8px; border-radius:999px; border:1px solid #2a3566; margin-right:6px; color:#aab3da }
+      .skills{ margin-top:8px }
+      .skills .have{ color:var(--good) }
+      .skills .missing{ color:var(--bad) }
+      .desc{ margin-top:10px; color:#b6bde0 }
+      .job-details{ margin-top:12px; }
+      .job-section{ margin-bottom:16px; }
+      .job-section-title{ font-weight:600; color:#aab3da; margin-bottom:6px; font-size:14px; text-transform:uppercase; letter-spacing:0.5px; }
+      .job-section-content{ color:#b6bde0; line-height:1.5; }
+      .company-info{ display:flex; gap:16px; flex-wrap:wrap; }
+      .company-item{ display:flex; align-items:center; gap:6px; }
+      .company-item .icon{ width:16px; height:16px; opacity:0.7; }
+      .qualifications{ display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:8px; }
+      .qual-item{ background:#0e1530; padding:8px 12px; border-radius:6px; border:1px solid #1d2547; font-size:13px; }
+      .status{ margin-left:8px; }
+      .uploader{ display:flex; align-items:center; gap:10px }
+      .hidden{ display:none }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div>
+          <div class="title">Resume Match Dashboard</div>
+          <div class="muted">Upload a resume (PDF/DOCX/TXT), then filter jobs</div>
+        </div>
+        <div class="uploader">
+          <input id="file" type="file" accept=".pdf,.doc,.docx,.txt" />
+          <button id="uploadBtn" class="btn">Upload & Score</button>
+          <span id="status" class="muted status"></span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <div id="results"></div>
+        </div>
+        <div class="card filters">
+          <div style="font-weight:600; margin-bottom:8px">Filters</div>
+          <input id="filterTitle" placeholder="Title" />
+          <input id="filterCompany" placeholder="Company" />
+          <input id="filterLocation" placeholder="Location" />
+          <input id="filterQ" placeholder="Description contains..." />
+          <button id="applyFilters" class="btn" style="width:100%; margin-top:6px">Apply Filters</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const apiBase = location.origin.replace(/\/$/, '');
+      const statusEl = document.getElementById('status');
+      const resultsEl = document.getElementById('results');
+
+      function scoreClass(score){ if(score>=80) return 'good'; if(score>=50) return 'mid'; return 'bad'; }
+
+      function formatJobDescription(description) {
+        if (!description) return 'No description available';
+        
+        // Split into paragraphs and format
+        const paragraphs = description.split('\n').filter(p => p.trim());
+        let formatted = '';
+        
+        paragraphs.forEach(paragraph => {
+          const trimmed = paragraph.trim();
+          if (!trimmed) return;
+          
+          // Check if it's a bullet point or list item
+          if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
+            formatted += `<div style="margin: 8px 0; padding-left: 16px; position: relative;">
+              <span style="position: absolute; left: 0; color: #6ea8fe;">•</span>
+              <span>${trimmed.substring(1).trim()}</span>
+            </div>`;
+          }
+          // Check if it's a section header (all caps or title case)
+          else if (trimmed.length < 50 && (trimmed === trimmed.toUpperCase() || /^[A-Z][a-z\s]+:?$/.test(trimmed))) {
+            formatted += `<div style="font-weight: 600; color: #aab3da; margin: 16px 0 8px 0; font-size: 15px; text-transform: uppercase; letter-spacing: 0.5px;">${trimmed}</div>`;
+          }
+          // Regular paragraph
+          else {
+            formatted += `<div style="margin: 12px 0; line-height: 1.6;">${trimmed}</div>`;
+          }
+        });
+        
+        return formatted || `<div style="margin: 12px 0; line-height: 1.6;">${description}</div>`;
+      }
+
+      function renderResults(items){
+        resultsEl.innerHTML = '';
+        if(!items || !items.length){
+          resultsEl.innerHTML = '<div class="muted">No jobs found.</div>';
+          return;
+        }
+        items.forEach(job => {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'job';
+          const sc = job.match?.score ?? '-';
+          wrapper.innerHTML = `
+            <div class="job-head" data-id="${job.id}">
+              <div>
+                <div style="font-weight:600">${job.title}</div>
+                <div class="muted">${job.company} • ${job.location}</div>
+              </div>
+              <div class="score ${scoreClass(sc)}">${sc}</div>
+            </div>
+            <div class="details hidden">
+              <div class="job-details">
+                <div class="job-section">
+                  <div class="job-section-title">Company Information</div>
+                  <div class="job-section-content">
+                    <div class="company-info">
+                      <div class="company-item">
+                        <span>🏢</span>
+                        <span>${job.company}</span>
+                      </div>
+                      <div class="company-item">
+                        <span>📍</span>
+                        <span>${job.location}</span>
+                      </div>
+                      <div class="company-item">
+                        <span>💼</span>
+                        <span>${job.title}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div class="job-section">
+                  <div class="job-section-title">Job Description</div>
+                  <div class="job-section-content">${formatJobDescription(job.description || 'No description available')}</div>
+                </div>
+                
+                ${(job.requiredSkills && job.requiredSkills.length > 0) || (job.preferredSkills && job.preferredSkills.length > 0) || (job.bonusSkills && job.bonusSkills.length > 0) ? `
+                <div class="job-section">
+                  <div class="job-section-title">Qualifications & Requirements</div>
+                  <div class="job-section-content">
+                    ${job.requiredSkills && job.requiredSkills.length > 0 ? `
+                    <div style="margin-bottom:12px;">
+                      <div style="font-weight:600; color:#ef4444; margin-bottom:6px;">Required Skills</div>
+                      <div class="qualifications">
+                        ${job.requiredSkills.map(skill => `<div class="qual-item">${skill}</div>`).join('')}
+                      </div>
+                    </div>` : ''}
+                    ${job.preferredSkills && job.preferredSkills.length > 0 ? `
+                    <div style="margin-bottom:12px;">
+                      <div style="font-weight:600; color:#f59e0b; margin-bottom:6px;">Preferred Skills</div>
+                      <div class="qualifications">
+                        ${job.preferredSkills.map(skill => `<div class="qual-item">${skill}</div>`).join('')}
+                      </div>
+                    </div>` : ''}
+                    ${job.bonusSkills && job.bonusSkills.length > 0 ? `
+                    <div style="margin-bottom:12px;">
+                      <div style="font-weight:600; color:#16a34a; margin-bottom:6px;">Bonus Skills</div>
+                      <div class="qualifications">
+                        ${job.bonusSkills.map(skill => `<div class="qual-item">${skill}</div>`).join('')}
+                      </div>
+                    </div>` : ''}
+                  </div>
+                </div>` : ''}
+                
+                ${job.match ? `
+                <div class="job-section">
+                  <div class="job-section-title">Your Match Analysis</div>
+                  <div class="job-section-content">
+                    <div class="skills">
+                      <div><span class="badge">Required</span> <span class="have">${(job.match.overlap.required||[]).join(', ')||'—'}</span></div>
+                      <div><span class="badge">Preferred</span> <span class="have">${(job.match.overlap.preferred||[]).join(', ')||'—'}</span></div>
+                      <div><span class="badge">Bonus</span> <span class="have">${(job.match.overlap.bonus||[]).join(', ')||'—'}</span></div>
+                      <div style="margin-top:6px"><span class="badge">Missing (Required)</span> <span class="missing">${(job.match.missing.required||[]).join(', ')||'—'}</span></div>
+                      <div><span class="badge">Missing (Preferred)</span> <span class="missing">${(job.match.missing.preferred||[]).join(', ')||'—'}</span></div>
+                    </div>
+                  </div>
+                </div>` : ''}
+              </div>
+            </div>
+          `;
+          wrapper.querySelector('.job-head').addEventListener('click',()=>{
+            wrapper.querySelector('.details').classList.toggle('hidden');
+          });
+          resultsEl.appendChild(wrapper);
+        });
+      }
+
+      async function fetchJobs(params={}){
+        const qs = new URLSearchParams(params);
+        const res = await fetch(`${apiBase}/api/jobs?${qs.toString()}`);
+        return res.json();
+      }
+
+      async function uploadAndScore(){
+        const file = document.getElementById('file').files[0];
+        if(!file){ alert('Select a resume first'); return; }
+        statusEl.textContent = 'Uploading...';
+        const form = new FormData();
+        form.append('resume', file);
+        const res = await fetch(`${apiBase}/api/match`, { method:'POST', body: form });
+        if(!res.ok){ statusEl.textContent = 'Upload failed'; return; }
+        const data = await res.json();
+        statusEl.textContent = `Parsed ${data.resume.skills.length} skills (${data.resume.confidence}% confidence)`;
+        renderResults(data.results);
+      }
+
+      document.getElementById('uploadBtn').addEventListener('click', uploadAndScore);
+
+      document.getElementById('applyFilters').addEventListener('click', async ()=>{
+        statusEl.textContent = 'Loading jobs...';
+        const params = {
+          title: document.getElementById('filterTitle').value.trim(),
+          company: document.getElementById('filterCompany').value.trim(),
+          location: document.getElementById('filterLocation').value.trim(),
+          q: document.getElementById('filterQ').value.trim()
+        };
+        Object.keys(params).forEach(k=>{ if(!params[k]) delete params[k]; });
+        const jobs = await fetchJobs(params);
+        statusEl.textContent = '';
+        renderResults(jobs);
+      });
+
+      fetchJobs().then(renderResults);
+    </script>
+  </body>
+  </html>
+
+
