@@ -8,6 +8,9 @@ import fs from 'fs';
 import path from 'path';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+
+// Configure pdfjs-dist for serverless environment
+pdfjsLib.GlobalWorkerOptions.workerSrc = null;
 import { fileURLToPath } from 'url';
 import { scoreCandidateAgainstJob, filterJobs } from './lib/match.js';
 import { extractSkillsWithRAG, extractResumeMetadata } from './lib/ragParser.js';
