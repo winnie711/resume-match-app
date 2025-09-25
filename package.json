@@ -6,8 +6,8 @@
   "scripts": {
     "start": "cd server && npm start",
     "dev": "cd server && npm run dev",
-    "build": "echo 'No build step required'",
-    "vercel-build": "echo 'No build step required'"
+    "build": "cd server && npm install",
+    "vercel-build": "cd server && npm install"
   },
   "dependencies": {
     "body-parser": "^1.20.3",
