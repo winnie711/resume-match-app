@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || 'your-api-key-here'
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 const RESUME_MATCHING_PROMPT = `You are an AI resume-matching assistant. Your task is to compare a candidate's resume to a job description and generate a match percentage score.
