@@ -19,13 +19,20 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(cors());
 app.use(bodyParser.json({ limit: '2mb' }));
-app.use(express.static(path.join(__dirname, '..')));
 
-const upload = multer({ dest: path.join(__dirname, 'uploads') });
+// For Vercel, use memory storage instead of disk storage
+const storage = multer.memoryStorage();
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
+// Load jobs data
 const jobs = JSON.parse(
-    fs.readFileSync(path.join(__dirname, 'lib', 'jobs.seed.json'), 'utf8')
-  );
+  fs.readFileSync(path.join(__dirname, 'lib', 'jobs.seed.json'), 'utf8')
+);
 
 // Helper function to fetch jobs from RapidAPI
 async function fetchJobsFromAPI(query = 'strategic finance') {
@@ -78,9 +85,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Serve static files - for Vercel, serve from the client directory
+app.use(express.static(path.join(__dirname, '..', 'client')));
+
 // Serve the main app
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, '..', 'index.html'));
+  res.sendFile(path.join(__dirname, '..', 'client', 'index-openai.html'));
 });
 
 // RapidAPI-backed job search (JSearch)
@@ -95,6 +105,35 @@ app.get('/api/jobs', async (req, res) => {
   res.json(apiJobs);
 });
 
+// Helper function to extract text from file buffer
+async function extractTextFromBuffer(buffer, originalname) {
+  const ext = path.extname(originalname).toLowerCase();
+  let text = '';
+  
+  if (ext === '.pdf') {
+    const uint8Array = new Uint8Array(buffer);
+    const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
+    const pdf = await loadingTask.promise;
+    let fullText = '';
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const textContent = await page.getTextContent();
+      const pageText = textContent.items.map(item => item.str).join(' ');
+      fullText += pageText + ' ';
+    }
+    text = fullText.trim();
+  } else if (ext === '.docx' || ext === '.doc') {
+    const result = await mammoth.extractRawText({ buffer: buffer });
+    text = result.value || '';
+  } else if (ext === '.txt') {
+    text = buffer.toString('utf8');
+  } else {
+    throw new Error('Unsupported file type. Upload PDF, DOCX, or TXT.');
+  }
+  
+  return text;
+}
+
 // New OpenAI-powered matching endpoint
 app.post('/api/match-openai', upload.single('resume'), async (req, res) => {
   try {
@@ -102,35 +141,8 @@ app.post('/api/match-openai', upload.single('resume'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
     
-    const filePath = req.file.path;
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    let text = '';
-    
-    if (ext === '.pdf') {
-      const dataBuffer = fs.readFileSync(filePath);
-      const uint8Array = new Uint8Array(dataBuffer);
-      const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-      const pdf = await loadingTask.promise;
-      let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
-        fullText += pageText + ' ';
-      }
-      text = fullText.trim();
-    } else if (ext === '.docx' || ext === '.doc') {
-      const dataBuffer = fs.readFileSync(filePath);
-      const result = await mammoth.extractRawText({ buffer: dataBuffer });
-      text = result.value || '';
-    } else if (ext === '.txt') {
-      text = fs.readFileSync(filePath, 'utf8');
-    } else {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ error: 'Unsupported file type. Upload PDF, DOCX, or TXT.' });
-    }
-
-    fs.unlink(filePath, () => {});
+    // Extract text from file buffer (no temporary files needed)
+    const text = await extractTextFromBuffer(req.file.buffer, req.file.originalname);
 
     // Use OpenAI for skill extraction
     const skillsResult = await extractSkillsWithOpenAI(text);
@@ -181,7 +193,7 @@ app.post('/api/match-openai', upload.single('resume'), async (req, res) => {
     res.json({ resume, results });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to process resume' });
+    res.status(500).json({ error: 'Failed to process resume: ' + err.message });
   }
 });
 
@@ -190,34 +202,9 @@ app.post('/api/match', upload.single('resume'), async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
-    const filePath = req.file.path;
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    let text = '';
-    if (ext === '.pdf') {
-      const dataBuffer = fs.readFileSync(filePath);
-      const uint8Array = new Uint8Array(dataBuffer);
-      const loadingTask = pdfjsLib.getDocument({ data: uint8Array });
-      const pdf = await loadingTask.promise;
-      let fullText = '';
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
-        fullText += pageText + ' ';
-      }
-      text = fullText.trim();
-    } else if (ext === '.docx' || ext === '.doc') {
-      const dataBuffer = fs.readFileSync(filePath);
-      const result = await mammoth.extractRawText({ buffer: dataBuffer });
-      text = result.value || '';
-    } else if (ext === '.txt') {
-      text = fs.readFileSync(filePath, 'utf8');
-    } else {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ error: 'Unsupported file type. Upload PDF, DOCX, or TXT.' });
-    }
-
-    fs.unlink(filePath, () => {});
+    
+    // Extract text from file buffer (no temporary files needed)
+    const text = await extractTextFromBuffer(req.file.buffer, req.file.originalname);
 
     // Use RAG-based parsing
     const skillsData = extractSkillsWithRAG(text);
@@ -241,15 +228,19 @@ app.post('/api/match', upload.single('resume'), async (req, res) => {
     res.json({ resume, results });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to process resume' });
+    res.status(500).json({ error: 'Failed to process resume: ' + err.message });
   }
 });
 
-const port = process.env.PORT || 4000;
-app.listen(port, () => {
-  const uploadsDir = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  console.log(`Server running on http://localhost:${port}`);
-});
+// For local development
+if (process.env.NODE_ENV !== 'production') {
+  const port = process.env.PORT || 4000;
+  app.listen(port, () => {
+    console.log(`Server running on http://localhost:${port}`);
+  });
+}
+
+// Export for Vercel
+export default app;
 
 
